@@ -6,23 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button1"
 import { Input } from "@/components/ui/input1"
 import { Label } from "@/components/ui/label1"
-import { ArrowLeftIcon, UploadIcon, CheckIcon, PlayIcon, MonitorStopIcon as StopIcon, CheckCircleIcon } from "lucide-react"
-
-interface Job {
-  id: number
-  title: string
-  company: string
-  description: string
-  skills: string
-  location: string
-  salary: string
-}
-
-const jobListings: Job[] = [
-  { id: 1, title: "Frontend Developer", company: "Tech Corp", description: "Build amazing UI", skills: "React, TS", location: "Remote", salary: "$4000" },
-  { id: 2, title: "Backend Developer", company: "Data Systems", description: "Handle API & DB", skills: "Node.js, MongoDB", location: "NYC", salary: "$4500" },
-  { id: 3, title: "UI/UX Designer", company: "Creative Minds", description: "Design awesome interfaces", skills: "Figma, Adobe XD", location: "Remote", salary: "$3500" },
-]
+import { ArrowLeftIcon, PlayIcon, MonitorStopIcon as StopIcon, CheckCircleIcon } from "lucide-react"
 
 // ---------------- VideoRecorder Component ----------------
 function VideoRecorder({ onVideoRecorded }: { onVideoRecorded: (blob: Blob) => void }) {
@@ -44,9 +28,7 @@ function VideoRecorder({ onVideoRecorded }: { onVideoRecorded: (blob: Blob) => v
       }
     }
     initCamera()
-    return () => {
-      stream?.getTracks().forEach((track) => track.stop())
-    }
+    return () => stream?.getTracks().forEach((track) => track.stop())
   }, [])
 
   const startRecording = () => {
@@ -76,13 +58,21 @@ function VideoRecorder({ onVideoRecorded }: { onVideoRecorded: (blob: Blob) => v
       <div className="bg-gray-200 rounded-lg overflow-hidden aspect-video relative">
         <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
         {isRecording && <div className="absolute top-2 left-2 text-red-500 font-bold">Recording...</div>}
-        {recordingComplete && !isRecording && <div className="absolute inset-0 flex items-center justify-center"><CheckCircleIcon className="h-12 w-12 text-green-500" /></div>}
+        {recordingComplete && !isRecording && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <CheckCircleIcon className="h-12 w-12 text-green-500" />
+          </div>
+        )}
       </div>
       <div className="flex justify-center gap-4">
         {!isRecording ? (
-          <Button onClick={startRecording} className="bg-green-500 text-white"><PlayIcon className="mr-2" />Start Recording</Button>
+          <Button onClick={startRecording} className="bg-green-500 text-white">
+            <PlayIcon className="mr-2" />Start Recording
+          </Button>
         ) : (
-          <Button onClick={stopRecording} className="bg-red-500 text-white"><StopIcon className="mr-2" />Stop Recording</Button>
+          <Button onClick={stopRecording} className="bg-red-500 text-white">
+            <StopIcon className="mr-2" />Stop Recording
+          </Button>
         )}
       </div>
     </div>
@@ -90,12 +80,24 @@ function VideoRecorder({ onVideoRecorded }: { onVideoRecorded: (blob: Blob) => v
 }
 
 // ---------------- JobSeekerView Component ----------------
+interface Job {
+  _id: string
+  title: string
+  company: string
+  description: string
+  skills: string[] | string
+  location: string
+  salary: string
+}
+
 export default function JobSeekerView({ onBack }: { onBack: () => void }) {
+  const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showInterview, setShowInterview] = useState(false)
   const [formData, setFormData] = useState({ name: "", email: "", resume: null as File | null, score: 0, videos: [] as Blob[] })
   const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [loading, setLoading] = useState(false)
 
   const interviewQuestions = [
     "Tell us about yourself.",
@@ -105,6 +107,26 @@ export default function JobSeekerView({ onBack }: { onBack: () => void }) {
     "Any questions for us?",
   ]
 
+  // Fetch jobs from MongoDB backend
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const res = await fetch("http://localhost:5001/api/jobs")
+        if (res.ok) {
+          const data = await res.json()
+          setJobs(data)
+        } else {
+          console.warn("Failed to fetch jobs, using empty list")
+          setJobs([])
+        }
+      } catch (err) {
+        console.error("Error fetching jobs:", err)
+        setJobs([])
+      }
+    }
+    fetchJobs()
+  }, [])
+
   const handleApplyClick = (job: Job) => {
     setSelectedJob(job)
     setShowForm(true)
@@ -113,13 +135,11 @@ export default function JobSeekerView({ onBack }: { onBack: () => void }) {
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.resume) return alert("Upload resume first")
-    // Skip backend, just go to interview
     setShowForm(false)
     setShowInterview(true)
   }
 
   const handleNextQuestion = () => {
-    // Add 20 points for each question answered
     setFormData({ ...formData, score: formData.score + 20 })
     if (currentQuestion < interviewQuestions.length - 1) setCurrentQuestion(currentQuestion + 1)
     else {
@@ -139,25 +159,30 @@ export default function JobSeekerView({ onBack }: { onBack: () => void }) {
   return (
     <div className="max-w-6xl mx-auto p-4">
       <div className="flex items-center mb-6">
-        <Button variant="ghost" onClick={onBack} className="mr-4"><ArrowLeftIcon className="h-4 w-4 mr-2" />Back</Button>
+        <Button variant="ghost" onClick={onBack} className="mr-4">
+          <ArrowLeftIcon className="h-4 w-4 mr-2" />Back
+        </Button>
         <h2 className="text-2xl font-bold">Job Opportunities</h2>
       </div>
 
       <AnimatePresence mode="wait">
         {!showForm && !showInterview && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {jobListings.map((job) => (
-              <motion.div key={job.id} whileHover={{ y: -5 }} transition={{ type: "spring", stiffness: 300 }}>
+            {jobs.length === 0 && <p className="col-span-3 text-center text-gray-500">No jobs available at the moment.</p>}
+            {jobs.map((job) => (
+              <motion.div key={job._id} whileHover={{ y: -5 }} transition={{ type: "spring", stiffness: 300 }}>
                 <Card className="h-full flex flex-col">
                   <CardHeader>
                     <CardTitle>{job.title}</CardTitle>
-                    <CardDescription>{job.company}</CardDescription>
+                    <CardDescription className="text-gray-500">{job.company}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow">
-                    <p>{job.description}</p>
-                    <p><strong>Skills:</strong> {job.skills}</p>
-                    <p><strong>Location:</strong> {job.location}</p>
-                    <p><strong>Salary:</strong> {job.salary}</p>
+                    <p className="text-sm text-gray-600 mb-4">{job.description}</p>
+                    <p className="text-sm text-gray-600 mb-2">
+                      <strong>Skills:</strong> {Array.isArray(job.skills) ? job.skills.join(", ") : job.skills}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-2"><strong>Location:</strong> {job.location}</p>
+                    <p className="text-sm text-gray-600"><strong>Salary:</strong> {job.salary}</p>
                   </CardContent>
                   <CardFooter>
                     <Button className="w-full bg-orange-500 text-white" onClick={() => handleApplyClick(job)}>Apply Now</Button>
@@ -168,12 +193,11 @@ export default function JobSeekerView({ onBack }: { onBack: () => void }) {
           </motion.div>
         )}
 
-        {showForm && (
+        {showForm && selectedJob && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <Card className="max-w-2xl mx-auto">
               <CardHeader>
-                <CardTitle>Apply for {selectedJob?.title}</CardTitle>
-                <CardDescription>Fill out the form below</CardDescription>
+                <CardTitle>Apply for {selectedJob.title}</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleFormSubmit} className="space-y-4">
