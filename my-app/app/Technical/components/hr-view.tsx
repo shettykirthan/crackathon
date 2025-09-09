@@ -13,10 +13,8 @@ import {
   LayoutDashboardIcon,
   PlusCircleIcon,
   CalendarIcon,
-  UsersIcon,
   CheckCircleIcon,
   XCircleIcon,
-  EyeIcon,
 } from "lucide-react"
 
 interface HRViewProps {
@@ -37,12 +35,26 @@ export default function HRView({ onBack }: HRViewProps) {
     skills: "",
   })
 
+  // ---------------- Dummy Applicants ----------------
+  const dummyApplicants = [
+    { _id: "1", name: "Alice Johnson", email: "alice@example.com", resumeUrl: "#", score: Math.floor(Math.random() * 51) + 50, videoUrl: "#" },
+    { _id: "2", name: "Bob Smith", email: "bob@example.com", resumeUrl: "#", score: Math.floor(Math.random() * 51) + 50, videoUrl: "#" },
+    { _id: "3", name: "Charlie Lee", email: "charlie@example.com", resumeUrl: "#", score: Math.floor(Math.random() * 51) + 50, videoUrl: "#" },
+  ]
+
   // Fetch jobs
   useEffect(() => {
     fetch("http://localhost:5001/api/jobs")
       .then((res) => res.json())
       .then((data) => setJobs(data))
-      .catch((err) => console.error("Error fetching jobs:", err))
+      .catch((err) => {
+        console.error("Error fetching jobs:", err)
+        // Fallback dummy jobs if backend fails
+        setJobs([
+          { _id: "1", title: "Frontend Developer", location: "Remote", createdAt: new Date().toISOString(), status: "Active" },
+          { _id: "2", title: "Backend Engineer", location: "NYC", createdAt: new Date().toISOString(), status: "Active" },
+        ])
+      })
   }, [activeTab])
 
   const handleJobClick = async (jobId: string) => {
@@ -50,10 +62,15 @@ export default function HRView({ onBack }: HRViewProps) {
     setActiveTab("applicants")
     try {
       const res = await fetch(`http://localhost:5001/api/jobs/${jobId}/applicants`)
-      const data = await res.json()
+      let data = await res.json()
+      // Assign dummy scores if missing
+      data = data.map((app: any) => ({ ...app, score: app.score ?? Math.floor(Math.random() * 51) + 50 }))
+      // If empty, use dummyApplicants
+      if (data.length === 0) data = dummyApplicants
       setApplicants(data)
     } catch (err) {
       console.error("Error fetching applicants:", err)
+      setApplicants(dummyApplicants)
     }
   }
 
@@ -109,7 +126,6 @@ export default function HRView({ onBack }: HRViewProps) {
                         <p className="text-gray-600">{job.location}</p>
                       </div>
                       <div className="flex gap-4 items-center">
-                        <CalendarIcon className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">{new Date(job.createdAt).toDateString()}</span>
                         {job.status === "Active" ? (
                           <span className="text-green-600 flex items-center gap-1">
